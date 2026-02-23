@@ -370,7 +370,7 @@ The tool exports PDFs with `fonttype=42` (TrueType outlines) so text remains edi
 
 If you use this tool in your research, please cite:
 
-> Sandoval Ortega, R. A. (2026). Von Frey Up-Down Analysis Tool. GitHub repository. https://github.com/your-username/vf_analysis
+> Sandoval Ortega, R. A. (2026). Von Frey Up-Down Analysis Tool. GitHub repository. https://github.com/raqueladaia/vf_updown_analysis
 
 And the original methodological references:
 
