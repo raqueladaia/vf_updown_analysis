@@ -16,20 +16,17 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m src.main                    # Launch GUI
-  python -m src.main --gui              # Launch GUI (explicit)
-  python -m src.main --compute \\
-    --data data.xlsx \\
-    --metadata info_mice.xlsx \\
+  python run.py                         # Launch GUI
+  python run.py --compute \\
+    --data data/data_timeline_experiment.xlsx \\
+    --metadata data/metadata_timeline_experiment.xlsx \\
     --filament-ref data/VF_Calculator_Up-down.xlsx \\
     --output results/
         """,
     )
 
-    parser.add_argument("--gui", action="store_true", default=True,
-                        help="Launch the GUI application (default)")
     parser.add_argument("--compute", action="store_true",
-                        help="Run threshold computation in CLI mode")
+                        help="Run threshold computation in CLI mode (skip GUI)")
     parser.add_argument("--data", type=str, help="Path to von Frey data file")
     parser.add_argument("--metadata", type=str, help="Path to metadata file")
     parser.add_argument("--filament-ref", type=str,

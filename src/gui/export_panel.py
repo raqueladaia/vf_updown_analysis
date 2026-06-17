@@ -96,9 +96,7 @@ class StatsPanel(QWidget):
         self.cb_anova = QCheckBox("ANOVA on delta scores")
         self.cb_anova.setChecked(True)
         fg_layout.addWidget(self.cb_anova)
-        self.cb_effect_size = QCheckBox("Effect sizes (Cohen's d)")
-        self.cb_effect_size.setChecked(True)
-        fg_layout.addWidget(self.cb_effect_size)
+        fg_layout.addWidget(QLabel("Post-hoc tests report Cohen's d effect sizes."))
         layout.addWidget(self.factorial_group)
 
         # Run button
@@ -138,13 +136,10 @@ class StatsPanel(QWidget):
 
     def refresh(self) -> None:
         """Refresh panel based on current state."""
-        merged = self.state._merged_df
-        if merged is None:
+        if self.state._merged_df is None:
             return
 
-        # Populate pre/post combos from timepoints
-        timepoints = [tp for tp in self.state.timepoint_order
-                      if tp not in self.state.excluded_timepoints]
+        timepoints = self.state.active_timepoints()
 
         self.pre_combo.clear()
         self.post_combo.clear()
@@ -152,12 +147,16 @@ class StatsPanel(QWidget):
             self.pre_combo.addItem(tp)
             self.post_combo.addItem(tp)
 
-        # Auto-select first as pre, last as post
-        if len(timepoints) >= 2:
+        if len(timepoints) == 2:
+            self.state.auto_assign_pre_post_labels()
+            pre_idx = timepoints.index(self.state.pre_label) if self.state.pre_label in timepoints else 0
+            post_idx = timepoints.index(self.state.post_label) if self.state.post_label in timepoints else 1
+            self.pre_combo.setCurrentIndex(pre_idx)
+            self.post_combo.setCurrentIndex(post_idx)
+        elif len(timepoints) >= 2:
             self.pre_combo.setCurrentIndex(0)
             self.post_combo.setCurrentIndex(len(timepoints) - 1)
 
-        # Show/hide appropriate options based on design
         n_tp = len(timepoints)
         is_longitudinal = n_tp > 2
         self.longitudinal_group.setVisible(is_longitudinal)
@@ -176,8 +175,7 @@ class StatsPanel(QWidget):
 
     def _run_analysis(self) -> None:
         """Run the selected statistical analyses."""
-        merged = self.state._merged_df
-        if merged is None:
+        if self.state._merged_df is None:
             QMessageBox.warning(self, "No Data", "Load data and compute thresholds first.")
             return
 
@@ -188,11 +186,83 @@ class StatsPanel(QWidget):
         results_parts: list[str] = []
         group_col = self.state.group_cols[0] if self.state.group_cols else None
 
-        # Get active timepoints
-        active_tp = [tp for tp in self.state.timepoint_order
-                     if tp not in self.state.excluded_timepoints]
         tp_col = self.state.timepoint_col
-        df = merged[merged[tp_col].astype(str).isin(active_tp)].copy()
+        active_tp = self.state.active_timepoints()
+
+        if self.factorial_group.isVisible():
+            from ..core.data_loader import validate_facet_slices
+
+            slices = self.state.compute_facet_slices()
+            if not slices:
+                QMessageBox.warning(
+                    self,
+                    "Invalid Data",
+                    "No data after panel filters. Adjust Step 2 configuration.",
+                )
+                self.run_btn.setText("Run Analysis")
+                self.run_btn.setEnabled(True)
+                return
+
+            pre_label = self.pre_combo.currentText()
+            post_label = self.post_combo.currentText()
+            self.state.pre_label = pre_label
+            self.state.post_label = post_label
+
+            errors, _warnings = validate_facet_slices(
+                slices,
+                self.state.mouse_col,
+                tp_col,
+                active_tp,
+                pre_label,
+                post_label,
+                self.state.group_cols,
+                self.state.facet_cols,
+                self.state.get_factor_candidates(),
+            )
+            if errors:
+                QMessageBox.warning(
+                    self,
+                    "Pre-post validation failed",
+                    "\n".join(errors),
+                )
+                self.run_btn.setText("Run Analysis")
+                self.run_btn.setEnabled(True)
+                return
+
+            correction = self._get_correction_key()
+            self.state.correction_method = correction
+
+            try:
+                for i, sl in enumerate(slices):
+                    self.state.active_facet_index = i
+                    self.state.refresh_pairing_columns()
+                    if len(slices) > 1:
+                        results_parts.append("=" * 60)
+                        results_parts.append(f"PANEL: {sl.label}")
+                        results_parts.append("=" * 60)
+                    self._run_factorial(sl.df, group_col, tp_col, correction, results_parts)
+            except Exception as e:
+                import traceback
+                results_parts.append("\n" + "=" * 60)
+                results_parts.append("ERROR")
+                results_parts.append("=" * 60)
+                results_parts.append(f"{type(e).__name__}: {e}")
+                results_parts.append("")
+                results_parts.append("Traceback (for debugging):")
+                results_parts.append(traceback.format_exc())
+
+            self.results_text.setPlainText("\n".join(results_parts))
+            self._finish_run_analysis()
+            return
+        else:
+            df = self.state.get_analysis_df()
+            if df is None:
+                df = self.state._merged_df
+            if df is None:
+                QMessageBox.warning(self, "No Data", "Load data and compute thresholds first.")
+                self.run_btn.setText("Run Analysis")
+                self.run_btn.setEnabled(True)
+                return
 
         correction = self._get_correction_key()
         self.state.correction_method = correction
@@ -217,8 +287,10 @@ class StatsPanel(QWidget):
             results_parts.append(traceback.format_exc())
 
         self.results_text.setPlainText("\n".join(results_parts))
+        self._finish_run_analysis()
 
-        # Save significance display options
+    def _finish_run_analysis(self) -> None:
+        """Save significance options and re-enable the run button."""
         self.state.show_significance = self.cb_show_sig.isChecked()
         if self.radio_stars_p.isChecked():
             self.state.significance_style = "stars_and_p"
@@ -368,10 +440,12 @@ class StatsPanel(QWidget):
         post_label = self.post_combo.currentText()
         self.state.pre_label = pre_label
         self.state.post_label = post_label
+        self.state.refresh_pairing_columns()
 
         delta_df = compute_delta_scores(
             df, "threshold_50", tp_col, self.state.mouse_col,
             pre_label, post_label,
+            pairing_cols=self.state.pairing_cols or None,
         )
         self.state._delta_df = delta_df
         results_parts.append("=" * 60)
@@ -494,10 +568,10 @@ class ExportPanel(QWidget):
         exported_files: list[str] = []
 
         try:
-            # Export figure
+            # Export figure(s)
             if self._get_figure_callback:
-                fig = self._get_figure_callback()
-                if fig is not None:
+                slices = self.state.get_facet_slices()
+                if len(slices) > 1 and self.state.is_pre_post_design():
                     formats = []
                     if self.cb_pdf.isChecked():
                         formats.append("pdf")
@@ -507,8 +581,32 @@ class ExportPanel(QWidget):
                         formats.append("svg")
 
                     from ..plotting.plot_utils import export_figure
-                    paths = export_figure(fig, output_dir, prefix, formats)
-                    exported_files.extend(str(p) for p in paths)
+
+                    saved_index = self.state.active_facet_index
+                    for i, sl in enumerate(slices):
+                        self.state.active_facet_index = i
+                        fig = self._get_figure_callback()
+                        if fig is not None:
+                            slug = sl.label.replace(" · ", "_").replace("=", "-")
+                            paths = export_figure(
+                                fig, output_dir, f"{prefix}_{slug}", formats
+                            )
+                            exported_files.extend(str(p) for p in paths)
+                    self.state.active_facet_index = saved_index
+                else:
+                    fig = self._get_figure_callback()
+                    if fig is not None:
+                        formats = []
+                        if self.cb_pdf.isChecked():
+                            formats.append("pdf")
+                        if self.cb_png.isChecked():
+                            formats.append("png")
+                        if self.cb_svg.isChecked():
+                            formats.append("svg")
+
+                        from ..plotting.plot_utils import export_figure
+                        paths = export_figure(fig, output_dir, prefix, formats)
+                        exported_files.extend(str(p) for p in paths)
 
             # Export processed data
             if self.cb_data_xlsx.isChecked() and self.state._merged_df is not None:

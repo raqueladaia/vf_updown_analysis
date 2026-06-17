@@ -38,11 +38,6 @@ DEFAULT_SEX_LINESTYLES: dict[str, str] = {
     "female": ":",
 }
 
-DEFAULT_ALPHA_BY_GROUP: dict[str, float] = {
-    "control": 0.6,
-    "experimental": 1.0,
-}
-
 
 def apply_publication_style() -> None:
     """Apply publication-ready matplotlib rcParams.

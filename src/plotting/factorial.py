@@ -18,6 +18,7 @@ from matplotlib.figure import Figure
 from ..core.statistics import PairwiseResult
 from .plot_utils import (
     DEFAULT_COLORS,
+    DEFAULT_SEX_LINESTYLES,
     DEFAULT_SEX_MARKERS,
     add_significance_annotation,
     apply_publication_style,
@@ -32,11 +33,12 @@ def plot_paired_lines(
     timepoint_col: str = "timepoint",
     subject_col: str = "mouse",
     group_col: str = "group",
-    gender_col: str = "gender",
+    sex_col: str = "sex",
     pre_label: str = "pre",
     post_label: str = "post_chronic",
     colors: Optional[dict[str, str]] = None,
-    sex_markers: Optional[dict[str, str]] = None,
+    sex_linestyles: Optional[dict[str, str]] = None,
+    show_sex_encoding: bool = True,
     alpha_by_group: Optional[dict[str, float]] = None,
     y_min: float = 0.01,
     y_max: float = 10.0,
@@ -51,6 +53,7 @@ def plot_paired_lines(
     """Create a paired line plot connecting each animal's pre to post value.
 
     Animals within the same group share a color; lines connect paired observations.
+    All compared conditions share the same pre and post x positions.
 
     Args:
         df: DataFrame with pre and post data for each animal.
@@ -58,11 +61,12 @@ def plot_paired_lines(
         timepoint_col: Column with timepoint labels.
         subject_col: Column with subject/mouse IDs.
         group_col: Column defining groups (for coloring).
-        gender_col: Column with gender for marker shape.
+        sex_col: Column with sex for line style (solid male, dotted female).
         pre_label: Label for pre-intervention timepoint.
         post_label: Label for post-intervention timepoint.
         colors: Dict mapping group names to colors.
-        sex_markers: Dict mapping gender to marker shapes.
+        sex_linestyles: Dict mapping sex to line styles (solid male, dotted female).
+        show_sex_encoding: If True, distinguish sex by line style on individual traces.
         alpha_by_group: Dict mapping group names to alpha values.
         y_min: Y-axis min.
         y_max: Y-axis max.
@@ -81,8 +85,8 @@ def plot_paired_lines(
 
     if colors is None:
         colors = DEFAULT_COLORS
-    if sex_markers is None:
-        sex_markers = DEFAULT_SEX_MARKERS
+    if sex_linestyles is None:
+        sex_linestyles = DEFAULT_SEX_LINESTYLES
     if alpha_by_group is None:
         alpha_by_group = {}
 
@@ -91,12 +95,9 @@ def plot_paired_lines(
 
     groups = df[group_col].unique()
 
-    # X positions: spread groups apart
-    group_spacing = 0.4
-    x_positions: dict[str, dict[str, float]] = {}
-    for i, group in enumerate(groups):
-        base_x = i * (2 + group_spacing)
-        x_positions[str(group)] = {pre_label: base_x, post_label: base_x + 1}
+    # Shared pre/post x for all compared conditions (color encodes group)
+    x_pre = 0.0
+    x_post = 1.0
 
     # Plot individual paired lines
     subjects = df[subject_col].unique()
@@ -116,57 +117,79 @@ def plot_paired_lines(
         pre_val = pre_row[dependent_var].values[0]
         post_val = post_row[dependent_var].values[0]
 
-        x_pre = x_positions[group][pre_label]
-        x_post = x_positions[group][post_label]
+        sex = "male"
+        if sex_col in df_subj.columns:
+            sexes = df_subj[sex_col].dropna().unique()
+            if len(sexes) > 0:
+                sex = str(sexes[0]).lower()
+        linestyle = sex_linestyles.get(sex, "-") if show_sex_encoding else "-"
 
-        # Determine marker
-        gender = "male"
-        if gender_col in df_subj.columns:
-            genders = df_subj[gender_col].dropna().unique()
-            if len(genders) > 0:
-                gender = str(genders[0]).lower()
-        marker = sex_markers.get(gender, "o")
+        ax.plot(
+            [x_pre, x_post],
+            [pre_val, post_val],
+            color=color,
+            alpha=alpha * 0.6,
+            linewidth=1,
+            linestyle=linestyle,
+            zorder=1,
+        )
 
-        ax.plot([x_pre, x_post], [pre_val, post_val],
-                color=color, alpha=alpha * 0.6, linewidth=1, zorder=1)
-        ax.scatter([x_pre], [pre_val], marker=marker, color=color,
-                   edgecolor="none", alpha=alpha, s=40, zorder=2)
-        ax.scatter([x_post], [post_val], marker=marker, color=color,
-                   edgecolor="none", alpha=alpha, s=40, zorder=2)
-
-    # Plot group means
+    # Plot group means: thick pre→post line plus SEM error bars at each timepoint
     for group in groups:
         group_str = str(group)
         color = colors.get(group_str, "gray")
         df_group = df[df[group_col] == group]
 
-        for tp_label in [pre_label, post_label]:
-            vals = df_group[df_group[timepoint_col] == tp_label][dependent_var].dropna()
-            x = x_positions[group_str][tp_label]
-            mean = vals.mean()
-            sem = vals.sem()
-            ax.errorbar(x, mean, yerr=sem, fmt="s", color=color,
-                        markersize=8, capsize=4, linewidth=2, zorder=3,
-                        markeredgecolor="black", markeredgewidth=0.5)
+        pre_vals = df_group[df_group[timepoint_col] == pre_label][dependent_var].dropna()
+        post_vals = df_group[df_group[timepoint_col] == post_label][dependent_var].dropna()
+        if pre_vals.empty or post_vals.empty:
+            continue
 
-    # X-axis formatting
-    all_x_positions = []
-    all_x_labels = []
-    for group in groups:
-        group_str = str(group)
-        for tp_label in [pre_label, post_label]:
-            all_x_positions.append(x_positions[group_str][tp_label])
-            all_x_labels.append(f"{tp_label}")
+        mean_pre = pre_vals.mean()
+        mean_post = post_vals.mean()
+        sem_pre = pre_vals.sem()
+        sem_post = post_vals.sem()
 
-    ax.set_xticks(all_x_positions)
-    ax.set_xticklabels(all_x_labels, rotation=0)
+        ax.plot(
+            [x_pre, x_post],
+            [mean_pre, mean_post],
+            color=color,
+            linewidth=2.5,
+            zorder=3,
+            label=group_str,
+        )
+        ax.errorbar(
+            x_pre,
+            mean_pre,
+            yerr=sem_pre,
+            fmt="s",
+            color=color,
+            markersize=8,
+            capsize=4,
+            linewidth=1.5,
+            zorder=4,
+            markeredgecolor="black",
+            markeredgewidth=0.5,
+        )
+        ax.errorbar(
+            x_post,
+            mean_post,
+            yerr=sem_post,
+            fmt="s",
+            color=color,
+            markersize=8,
+            capsize=4,
+            linewidth=1.5,
+            zorder=4,
+            markeredgecolor="black",
+            markeredgewidth=0.5,
+        )
 
-    # Add group labels below
-    for group in groups:
-        group_str = str(group)
-        mid_x = (x_positions[group_str][pre_label] + x_positions[group_str][post_label]) / 2
-        ax.text(mid_x, -0.12, group_str, transform=ax.get_xaxis_transform(),
-                ha="center", va="top", fontsize=12, fontweight="bold")
+    ax.set_xticks([x_pre, x_post])
+    ax.set_xticklabels([pre_label, post_label], rotation=0)
+
+    if len(groups) > 1:
+        ax.legend(loc="best", frameon=False)
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -185,7 +208,7 @@ def plot_delta(
     delta_df: pd.DataFrame,
     delta_col: str = "delta",
     group_col: str = "group",
-    gender_col: str = "gender",
+    sex_col: str = "sex",
     colors: Optional[dict[str, str]] = None,
     sex_markers: Optional[dict[str, str]] = None,
     figsize: tuple[float, float] = (4.0, 4.0),
@@ -205,9 +228,9 @@ def plot_delta(
         delta_df: DataFrame with delta scores and group info.
         delta_col: Column containing delta scores.
         group_col: Column defining groups.
-        gender_col: Column with gender for marker shape.
+        sex_col: Column with sex for marker shape.
         colors: Dict mapping group names to colors.
-        sex_markers: Dict mapping gender to marker shapes.
+        sex_markers: Dict mapping sex to marker shapes.
         figsize: Figure size.
         x_label: X-axis label.
         y_label: Y-axis label.
@@ -244,10 +267,10 @@ def plot_delta(
         for _, row in df_group.iterrows():
             jitter = rng.uniform(-0.15, 0.15)
 
-            gender = "male"
-            if gender_col in df_group.columns and pd.notna(row.get(gender_col)):
-                gender = str(row[gender_col]).lower()
-            marker = sex_markers.get(gender, "o")
+            sex = "male"
+            if sex_col in df_group.columns and pd.notna(row.get(sex_col)):
+                sex = str(row[sex_col]).lower()
+            marker = sex_markers.get(sex, "o")
 
             ax.scatter(x_base + jitter, row[delta_col], marker=marker,
                        color=color, edgecolor="none", alpha=0.7, s=40, zorder=2)

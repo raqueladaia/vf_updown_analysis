@@ -28,6 +28,7 @@ from PyQt6.QtWidgets import (
 from ..core.data_loader import (
     check_mouse_id_match,
     detect_column_candidates,
+    get_mice_not_accepted,
     load_excel_or_csv,
     merge_metadata,
     validate_data_columns,
@@ -165,17 +166,17 @@ class DataInputPanel(QWidget):
         self.meta_status = QLabel("")
         mg_layout.addWidget(self.meta_status)
 
-        gender_row = QHBoxLayout()
-        gender_row.addWidget(QLabel("Gender column:"))
-        self.gender_combo = QComboBox()
-        self.gender_combo.setMinimumWidth(150)
-        gender_row.addWidget(self.gender_combo)
-        gender_row.addWidget(QLabel("Mouse ID column:"))
+        sex_row = QHBoxLayout()
+        sex_row.addWidget(QLabel("Sex column:"))
+        self.sex_combo = QComboBox()
+        self.sex_combo.setMinimumWidth(150)
+        sex_row.addWidget(self.sex_combo)
+        sex_row.addWidget(QLabel("Mouse ID column:"))
         self.meta_mouse_combo = QComboBox()
         self.meta_mouse_combo.setMinimumWidth(150)
-        gender_row.addWidget(self.meta_mouse_combo)
-        gender_row.addStretch()
-        mg_layout.addLayout(gender_row)
+        sex_row.addWidget(self.meta_mouse_combo)
+        sex_row.addStretch()
+        mg_layout.addLayout(sex_row)
 
         layout.addWidget(meta_group)
 
@@ -289,14 +290,15 @@ class DataInputPanel(QWidget):
             self.meta_status.setText(f"Loaded ({n_mice} mice)")
             self.meta_status.setStyleSheet("color: green;")
 
-            # Populate gender and mouse ID column dropdowns
+            # Populate sex and mouse ID column dropdowns
             candidates = detect_column_candidates(df)
             cols = list(df.columns)
-            self.gender_combo.clear()
-            self.gender_combo.addItems(cols)
-            if candidates.get("gender"):
-                idx = cols.index(candidates["gender"][0])
-                self.gender_combo.setCurrentIndex(idx)
+            self.sex_combo.clear()
+            self.sex_combo.addItems(cols)
+            if "sex" in cols:
+                self.sex_combo.setCurrentIndex(cols.index("sex"))
+            elif candidates.get("sex"):
+                self.sex_combo.setCurrentIndex(cols.index(candidates["sex"][0]))
 
             self.meta_mouse_combo.clear()
             self.meta_mouse_combo.addItems(cols)
@@ -323,7 +325,7 @@ class DataInputPanel(QWidget):
         self.state.timepoint_col = self.timepoint_combo.currentText()
         self.state.series_col = self.series_combo.currentText()
         self.state.filament_col = self.filament_combo.currentText()
-        self.state.gender_col = self.gender_combo.currentText()
+        self.state.sex_col = self.sex_combo.currentText()
         self.state.meta_mouse_col = self.meta_mouse_combo.currentText()
         self.state.log_column = "Log_new" if self.log_new_radio.isChecked() else "Log"
 
@@ -342,7 +344,7 @@ class DataInputPanel(QWidget):
         meta_errors = validate_metadata_columns(
             self.state._metadata_df,
             self.state.mouse_col,
-            self.state.gender_col,
+            self.state.sex_col,
             meta_mouse_col=self.state.meta_mouse_col,
         )
         if meta_errors:
@@ -375,14 +377,21 @@ class DataInputPanel(QWidget):
     def _on_threshold_done(self, df: object) -> None:
         self.state._data_df = df
 
-        # Merge metadata
-        self.state._merged_df = merge_metadata(
-            df,
-            self.state._metadata_df,
-            mouse_col=self.state.mouse_col,
-            gender_col=self.state.gender_col,
-            meta_mouse_col=self.state.meta_mouse_col,
-        )
+        if self.state._metadata_df is not None:
+            self.state._merged_df = merge_metadata(
+                df,
+                self.state._metadata_df,
+                mouse_col=self.state.mouse_col,
+                sex_col=self.state.sex_col,
+                meta_mouse_col=self.state.meta_mouse_col,
+            )
+            self.state.excluded_animals = get_mice_not_accepted(
+                self.state._metadata_df,
+                self.state.meta_mouse_col or self.state.mouse_col,
+            )
+        else:
+            self.state._merged_df = df
+            self.state.excluded_animals = []
 
         # Update preview table
         preview_cols = [self.state.mouse_col, self.state.timepoint_col,

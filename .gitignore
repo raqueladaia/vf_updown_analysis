@@ -30,3 +30,7 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# Test artifacts
+tests/help_out.txt
+tests/_inspect_*.py

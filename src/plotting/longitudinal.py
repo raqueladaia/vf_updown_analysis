@@ -33,10 +33,11 @@ def plot_longitudinal(
     timepoint_col: str = "timepoint",
     group_col: str = "group",
     subject_col: str = "mouse",
-    gender_col: str = "gender",
+    sex_col: str = "sex",
     colors: Optional[dict[str, str]] = None,
     sex_markers: Optional[dict[str, str]] = None,
     sex_linestyles: Optional[dict[str, str]] = None,
+    show_sex_encoding: bool = True,
     individual_alpha: float = 0.15,
     intervention_x: Optional[float] = None,
     y_min: float = 0.01,
@@ -58,15 +59,16 @@ def plot_longitudinal(
     overlaid as thick lines with error bars.
 
     Args:
-        df: DataFrame with columns for dependent_var, timepoint, group, subject, gender.
+        df: DataFrame with columns for dependent_var, timepoint, group, subject, sex.
         dependent_var: Column with threshold values.
         timepoint_col: Column with timepoint values.
         group_col: Column with group labels.
         subject_col: Column with subject/mouse IDs.
-        gender_col: Column with gender ('male'/'female').
+        sex_col: Column with sex ('male'/'female').
         colors: Dict mapping group names to colors.
-        sex_markers: Dict mapping gender to marker shapes.
-        sex_linestyles: Dict mapping gender to line styles.
+        sex_markers: Dict mapping sex to marker shapes.
+        sex_linestyles: Dict mapping sex to line styles.
+        show_sex_encoding: If True, use sex-specific markers and line styles.
         individual_alpha: Alpha for individual traces.
         intervention_x: X-position for intervention vertical line (None to skip).
         y_min: Y-axis minimum.
@@ -138,19 +140,20 @@ def plot_longitudinal(
             y_vals = df_subj[dependent_var].values
 
             # Determine sex for marker/linestyle
-            gender = "male"  # default
-            if gender_col in df_subj.columns:
-                gender_vals = df_subj[gender_col].dropna().unique()
-                if len(gender_vals) > 0:
-                    gender = str(gender_vals[0]).lower()
+            sex = "male"  # default
+            if sex_col in df_subj.columns:
+                sex_vals = df_subj[sex_col].dropna().unique()
+                if len(sex_vals) > 0:
+                    sex = str(sex_vals[0]).lower()
 
-            marker = sex_markers.get(gender, "o")
-            linestyle = sex_linestyles.get(gender, "-")
+            marker = sex_markers.get(sex, "o")
+            linestyle = sex_linestyles.get(sex, "-")
 
             ax.plot(x_vals, y_vals, linestyle=linestyle, color=color,
                     alpha=individual_alpha, linewidth=1, zorder=1)
-            ax.scatter(x_vals, y_vals, marker=marker, color=color,
-                       edgecolor="none", alpha=individual_alpha, s=20, zorder=1)
+            if show_sex_encoding:
+                ax.scatter(x_vals, y_vals, marker=marker, color=color,
+                           edgecolor="none", alpha=individual_alpha, s=20, zorder=1)
 
     # Plot group mean +/- SEM
     for group in groups:

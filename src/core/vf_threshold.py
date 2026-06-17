@@ -26,9 +26,6 @@ DELTA_INTERVAL: float = 0.441428571
 # Default starting filament number
 INITIAL_FILAMENT: int = 4
 
-# Series meaning: x = withdraw (step down), o = no withdraw (step up)
-SERIES_MEANING: dict[str, int] = {"x": -1, "o": 1}
-
 
 def calculate_log(force_grams: float) -> float:
     """Compute the log value from force in grams.
@@ -109,7 +106,6 @@ def compute_50_threshold(
     series_statistics: dict[str, float],
     log_column: str = "Log_new",
     delta: float = DELTA_INTERVAL,
-    initial_filament: int = INITIAL_FILAMENT,
 ) -> float:
     """Compute the 50% withdrawal threshold for a single observation.
 
@@ -121,7 +117,6 @@ def compute_50_threshold(
         series_statistics: Dict mapping uppercase series patterns to k statistics.
         log_column: Which log column to use ('Log_new' or 'Log').
         delta: Mean log interval between filaments.
-        initial_filament: Starting filament number.
 
     Returns:
         The 50% withdrawal threshold in grams, or NaN if series is invalid.

@@ -30,8 +30,6 @@ class StatResult:
     test_name: str
     summary_text: str
     table: Optional[pd.DataFrame] = None
-    pairwise: Optional[pd.DataFrame] = None
-    effect_sizes: Optional[pd.DataFrame] = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -93,34 +91,6 @@ def cohens_d(group_a: np.ndarray, group_b: np.ndarray) -> float:
         return 0.0
 
     return float((np.mean(group_a) - np.mean(group_b)) / pooled_std)
-
-
-def holm_bonferroni_correction(p_values: list[float]) -> list[float]:
-    """Apply Holm-Bonferroni correction to a list of p-values.
-
-    Args:
-        p_values: List of raw p-values.
-
-    Returns:
-        List of corrected p-values (same order as input).
-    """
-    n = len(p_values)
-    if n == 0:
-        return []
-
-    # Sort p-values and track original indices
-    indexed = sorted(enumerate(p_values), key=lambda x: x[1])
-
-    corrected = [0.0] * n
-    cumulative_max = 0.0
-
-    for rank, (orig_idx, p) in enumerate(indexed):
-        adjusted = p * (n - rank)
-        adjusted = min(adjusted, 1.0)
-        cumulative_max = max(cumulative_max, adjusted)
-        corrected[orig_idx] = cumulative_max
-
-    return corrected
 
 
 # ── Longitudinal analysis (mixed-effects model) ─────────────────────────
@@ -559,8 +529,14 @@ def compute_delta_scores(
     subject_col: str = "mouse",
     pre_label: str = "pre",
     post_label: str = "post_chronic",
+    pairing_cols: Optional[list[str]] = None,
 ) -> pd.DataFrame:
     """Compute delta (change) scores: post - pre for each animal.
+
+    **Precondition**: ``df`` must already be filtered with
+    ``build_analysis_dataframe()``. When animals have multiple pre/post pairs
+    (e.g. sal and DCZ under the same treatment block), pass ``pairing_cols``
+    (e.g. ``['drug']``) so deltas are computed per subject × pairing level.
 
     Args:
         df: DataFrame with the data.
@@ -569,17 +545,51 @@ def compute_delta_scores(
         subject_col: Subject/mouse column.
         pre_label: Label for the pre-intervention timepoint.
         post_label: Label for the post-intervention timepoint.
+        pairing_cols: Optional columns that define separate pre/post pairs
+            within each subject.
 
     Returns:
-        DataFrame with one row per subject containing:
+        DataFrame with one row per subject (× pairing level) containing:
         - subject_col
         - '{dependent_var}_pre'
         - '{dependent_var}_post'
         - 'delta' (post - pre)
-        - Any other metadata columns that are constant per subject.
+        - Any other metadata columns constant per subject × pairing level.
     """
-    df_pre = df[df[timepoint_col] == pre_label].set_index(subject_col)
-    df_post = df[df[timepoint_col] == post_label].set_index(subject_col)
+    pairing_cols = pairing_cols or []
+    tp_str = df[timepoint_col].astype(str)
+    df_pre = df[tp_str == str(pre_label)].copy()
+    df_post = df[tp_str == str(post_label)].copy()
+
+    if pairing_cols:
+        merge_keys = [subject_col] + pairing_cols
+        merged = df_pre.merge(
+            df_post,
+            on=merge_keys,
+            suffixes=("_pre", "_post"),
+            how="inner",
+        )
+        result = pd.DataFrame({
+            subject_col: merged[subject_col],
+            f"{dependent_var}_pre": merged[f"{dependent_var}_pre"],
+            f"{dependent_var}_post": merged[f"{dependent_var}_post"],
+        })
+        for col in pairing_cols:
+            result[col] = merged[col]
+        result["delta"] = result[f"{dependent_var}_post"] - result[f"{dependent_var}_pre"]
+
+        carry_cols = [
+            c for c in df.columns
+            if c not in [dependent_var, timepoint_col, subject_col] + pairing_cols
+        ]
+        for col in carry_cols:
+            pre_col = f"{col}_pre" if f"{col}_pre" in merged.columns else col
+            if pre_col in merged.columns:
+                result[col] = merged[pre_col].values
+        return result
+
+    df_pre = df_pre.set_index(subject_col)
+    df_post = df_post.set_index(subject_col)
 
     common_subjects = df_pre.index.intersection(df_post.index)
 
@@ -590,7 +600,6 @@ def compute_delta_scores(
     })
     result["delta"] = result[f"{dependent_var}_post"] - result[f"{dependent_var}_pre"]
 
-    # Carry over metadata columns that are constant per subject
     meta_cols = [c for c in df.columns if c not in [dependent_var, timepoint_col, subject_col]]
     for col in meta_cols:
         vals = df_pre.loc[common_subjects, col] if col in df_pre.columns else None

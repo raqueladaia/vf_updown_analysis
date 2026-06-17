@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QAction, QKeySequence, QIcon
+from PyQt6.QtGui import QAction, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
     QFileDialog,
@@ -138,7 +138,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.stack, stretch=1)
 
         # Set export panel's figure callback
-        self.export_panel.set_figure_callback(self.preview_panel.get_figure)
+        self.export_panel.set_figure_callback(self.preview_panel.get_figure_for_export)
 
         # Start on step 1
         self.sidebar.setCurrentRow(0)
@@ -152,6 +152,14 @@ class MainWindow(QMainWindow):
 
     def _on_step_changed(self, index: int) -> None:
         """Handle sidebar step navigation."""
+        # Validate groups config before leaving step 2
+        if index > 1 and self.stack.currentIndex() == 1:
+            if not self.group_panel.get_config():
+                self.sidebar.blockSignals(True)
+                self.sidebar.setCurrentRow(1)
+                self.sidebar.blockSignals(False)
+                return
+
         self.stack.setCurrentIndex(index)
 
         # Refresh panels when entering them
@@ -161,6 +169,11 @@ class MainWindow(QMainWindow):
             self.group_panel.get_config()
             self.appearance_panel.refresh()
         elif index == 3:
+            if not self.group_panel.get_config():
+                self.sidebar.blockSignals(True)
+                self.sidebar.setCurrentRow(1)
+                self.sidebar.blockSignals(False)
+                return
             self.appearance_panel.get_config()
             self.preview_panel.regenerate_plot()
         elif index == 4:
