@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: "Von Frey Up-Down Analysis Tool"
+message: "If you use this software, please cite it as below."
+type: software
+authors:
+  - family-names: Sandoval Ortega
+    given-names: Raquel Adaia
+    orcid: https://orcid.org/0000-0002-6449-7883
+    affiliation: University of Pennsylvania
+repository-code: https://github.com/raqueladaia/vf_updown_analysis
+url: https://doi.org/10.5281/zenodo.20762768
+doi: 10.5281/zenodo.20762768
+license: MIT
+version: 1.0.0
+date-released: 2026-06-19

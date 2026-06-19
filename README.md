@@ -1,5 +1,7 @@
 # Von Frey Up-Down Analysis Tool
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20762768.svg)](https://doi.org/10.5281/zenodo.20762768)
+
 A GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down data and producing publication-ready figures with statistical analysis.
 
 ## Background
@@ -551,7 +553,11 @@ PDFs use `fonttype=42` (TrueType). Ensure Arial is installed.
 
 If you use this tool in your research, please cite:
 
-> Sandoval Ortega, R. A. (2026). Von Frey Up-Down Analysis Tool. GitHub repository. https://github.com/raqueladaia/vf_updown_analysis
+> Sandoval Ortega, R. A. (2026). Von Frey Up-Down Analysis Tool (Version 1.0.0) [Computer software]. *Zenodo*. https://doi.org/10.5281/zenodo.20762768
+
+Source code: https://github.com/raqueladaia/vf_updown_analysis
+
+Machine-readable citation metadata is in [`CITATION.cff`](CITATION.cff).
 
 Methodological references:
 
