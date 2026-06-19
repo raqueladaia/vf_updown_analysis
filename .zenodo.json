@@ -1,0 +1,20 @@
+{
+  "title": "Von Frey Up-Down Analysis Tool",
+  "description": "GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down data and producing publication-ready figures with statistical analysis.",
+  "creators": [
+    {
+      "name": "Sandoval Ortega, Raquel Adaia",
+      "affiliation": "University of Pennsylvania",
+      "orcid": "0000-0002-6449-7883"
+    }
+  ],
+  "keywords": [
+    "von Frey",
+    "up-down method",
+    "mechanical sensitivity",
+    "neuroscience",
+    "pain behavior"
+  ],
+  "license": "MIT",
+  "upload_type": "software"
+}
