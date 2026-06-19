@@ -4,6 +4,52 @@
 
 A GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down data and producing publication-ready figures with statistical analysis.
 
+## Table of Contents
+
+- [Background](#background)
+- [Features](#features)
+- [Getting set up](#getting-set-up)
+  - [Requirements](#requirements)
+  - [Clone the repository](#1-clone-the-repository)
+  - [Create and activate a virtual environment](#2-create-and-activate-a-virtual-environment)
+  - [Install dependencies](#3-install-dependencies)
+  - [Verify the installation](#4-verify-the-installation)
+  - [Confirm the filament reference file](#5-confirm-the-filament-reference-file)
+  - [Launch the GUI](#6-launch-the-gui)
+- [Quick start with example data](#quick-start-with-example-data)
+  - [Option A — Timeline (longitudinal / SNI)](#option-a--timeline-longitudinal--sni)
+  - [Option B — Pre-post (factorial)](#option-b--pre-post-factorial)
+  - [CLI: compute thresholds only](#cli-compute-thresholds-only)
+- [Worked example: pre-post experiment](#worked-example-pre-post-experiment)
+- [The Dixon Up-Down Method](#the-dixon-up-down-method)
+  - [Reference file: `VF_Calculator_Up-down.xlsx`](#reference-file-vf_calculator_up-downxlsx)
+  - [Log column choice (`Log` vs `Log_new`)](#log-column-choice-log-vs-log_new)
+- [Data format requirements](#data-format-requirements)
+  - [Experimental data file](#experimental-data-file)
+  - [Metadata file (optional)](#metadata-file-optional)
+  - [Multi-block pre-post data files](#multi-block-pre-post-data-files)
+- [Example datasets](#example-datasets)
+  - [Timeline experiment (longitudinal)](#timeline-experiment-longitudinal)
+  - [Pre-post experiment (factorial)](#pre-post-experiment-factorial)
+- [GUI workflow](#gui-workflow)
+  - [Step 1: Data](#step-1-data)
+  - [Step 2: Groups & timepoints](#step-2-groups--timepoints)
+  - [Step 3: Appearance](#step-3-appearance)
+  - [Step 4: Preview](#step-4-preview)
+  - [Step 5: Statistics](#step-5-statistics)
+  - [Step 6: Export](#step-6-export)
+- [Command-line interface](#command-line-interface)
+- [Statistical methods](#statistical-methods)
+  - [Repeated-measures two-way ANOVA](#repeated-measures-two-way-anova)
+  - [Pairwise t-tests with multiple comparison correction](#pairwise-t-tests-with-multiple-comparison-correction)
+  - [Linear mixed-effects model](#linear-mixed-effects-model)
+  - [Delta score analysis (pre-post)](#delta-score-analysis-pre-post)
+  - [Significance on plots](#significance-on-plots)
+- [Project structure](#project-structure)
+- [Troubleshooting](#troubleshooting)
+- [Citation](#citation)
+- [License](#license)
+
 ## Background
 
 The von Frey test is a standard method for assessing mechanical sensitivity in rodents. An animal is placed on a mesh platform and its hindpaw is probed with calibrated nylon monofilaments of increasing or decreasing force. The experimenter records whether the animal withdraws its paw (positive response, `x`) or not (negative response, `o`).
