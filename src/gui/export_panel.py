@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 )
 
 from .state import AnalysisState
+from ..core.vf_threshold import boundary_summary, unresolved_boundaries
 
 
 class StatsPanel(QWidget):
@@ -179,11 +180,26 @@ class StatsPanel(QWidget):
             QMessageBox.warning(self, "No Data", "Load data and compute thresholds first.")
             return
 
+        review_df = self.state.get_base_df()
+        if review_df is not None:
+            review_df = review_df[~review_df[self.state.mouse_col].astype(str).isin(self.state.excluded_animals)]
+            if unresolved_boundaries(review_df):
+                QMessageBox.warning(
+                    self, "Boundary policy required",
+                    "Boundary observations are flagged for review. Choose a protocol in Step 1 "
+                    "and recompute before statistics. Endpoint substitution is not a censoring-aware model.\n"
+                    + boundary_summary(review_df),
+                )
+                return
+
         self.run_btn.setEnabled(False)
         self.run_btn.setText("Running...")
         self.results_text.clear()
 
         results_parts: list[str] = []
+        if review_df is not None and boundary_summary(review_df):
+            results_parts.append(boundary_summary(review_df))
+            results_parts.append("Endpoint substitutes, when selected, are treated as ordinary numbers by these tests; interpret with caution.")
         group_col = self.state.group_cols[0] if self.state.group_cols else None
 
         tp_col = self.state.timepoint_col
@@ -556,6 +572,9 @@ class ExportPanel(QWidget):
             self.state.output_dir = path
 
     def _export(self) -> None:
+        if self.state._merged_df is None:
+            QMessageBox.warning(self, "Recompute required", "Compute thresholds with the current inputs before exporting.")
+            return
         output_dir = self.output_dir_edit.text()
         if not output_dir:
             QMessageBox.warning(self, "No Output Directory", "Please select an output directory.")
@@ -613,6 +632,16 @@ class ExportPanel(QWidget):
                 data_path = output_path / f"{prefix}_data.xlsx"
                 self.state._merged_df.to_excel(data_path, index=False)
                 exported_files.append(str(data_path))
+
+            if self.state._filament_info is not None:
+                ladder_path = output_path / f"{prefix}_filaments.csv"
+                self.state._filament_info.to_csv(ladder_path, index=False)
+                exported_files.append(str(ladder_path))
+            note = boundary_summary(self.state._merged_df)
+            if note:
+                note_path = output_path / f"{prefix}_boundary_notes.txt"
+                note_path.write_text(note + "\nEndpoint substitutes are not exact thresholds. See docs/boundary_handling.md.\n", encoding="utf-8")
+                exported_files.append(str(note_path))
 
             # Export statistical results
             if self.cb_stats_xlsx.isChecked() and self.state._stat_results is not None:

@@ -33,6 +33,8 @@ class AnalysisState:
 
     # ── File paths ───────────────────────────────────────────────────────
     filament_ref_path: str = ""
+    filament_set: str = "legacy"
+    custom_filaments_path: str = ""
     data_file_path: str = ""
     metadata_file_path: str = ""
     output_dir: str = ""
@@ -47,6 +49,7 @@ class AnalysisState:
     sex_col: str = "sex"
     meta_mouse_col: str = "mouse"
     log_column: str = "Log_new"
+    boundary_policy: str = "flag"
 
 
 
@@ -104,6 +107,19 @@ class AnalysisState:
     _stat_results: Optional[Any] = field(default=None, repr=False)
     _pairwise_results: Optional[list] = field(default=None, repr=False)
     _facet_slices: Optional[list] = field(default=None, repr=False)
+
+    def invalidate_results(self) -> None:
+        """Discard all calculations when an input or computation setting changes."""
+        self._merged_df = None
+        self._delta_df = None
+        self._stat_results = None
+        self._pairwise_results = None
+        self._facet_slices = None
+        if self._data_df is not None:
+            calculated = {"threshold_50", "vf_filament_set", "vf_log_column", "vf_delta",
+                          "vf_status", "vf_boundary_limit_g", "vf_boundary_policy"}
+            columns = [c for c in self._data_df.columns if c in calculated]
+            self._data_df = self._data_df.drop(columns=columns)
 
 
 
@@ -335,5 +351,4 @@ class AnalysisState:
         """Load session from a JSON file."""
         text = Path(path).read_text(encoding="utf-8")
         return cls.from_json(text)
-
 

@@ -146,6 +146,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         """Connect inter-panel signals."""
         self.data_panel.data_ready.connect(self._on_data_ready)
+        self.data_panel.data_invalidated.connect(self._on_data_invalidated)
         self.group_panel.config_ready.connect(self._on_group_config_ready)
         self.appearance_panel.settings_changed.connect(self._on_appearance_changed)
         self.stats_panel.stats_done.connect(self._on_stats_done)
@@ -180,6 +181,12 @@ class MainWindow(QMainWindow):
             self.stats_panel.refresh()
         elif index == 5:
             pass  # export panel doesn't need refresh
+
+    def _on_data_invalidated(self) -> None:
+        self.preview_panel._replot()
+        self.stats_panel.results_text.clear()
+        self.export_panel.export_status.clear()
+        self.statusBar().showMessage("Inputs changed. Recompute thresholds before analysis/export.")
 
     def _on_data_ready(self) -> None:
         """Called when thresholds are computed successfully."""
@@ -229,6 +236,7 @@ class MainWindow(QMainWindow):
                 self.preview_panel.state = self.state
                 self.stats_panel.state = self.state
                 self.export_panel.state = self.state
+                self.data_panel.restore_filament_settings()
                 self.statusBar().showMessage(f"Session loaded from {path}")
             except Exception as e:
                 QMessageBox.critical(self, "Load Error", str(e))

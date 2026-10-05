@@ -165,8 +165,8 @@ class AppearancePanel(QWidget):
         row.addWidget(self.y_min_spin)
         row.addWidget(QLabel("max"))
         self.y_max_spin = QDoubleSpinBox()
-        self.y_max_spin.setRange(0.01, 100.0)
-        self.y_max_spin.setValue(10.0)
+        self.y_max_spin.setRange(0.01, 10000.0)
+        self.y_max_spin.setValue(self.state.y_max)
         self.y_max_spin.setDecimals(2)
         self.y_max_spin.valueChanged.connect(self._on_settings_changed)
         row.addWidget(self.y_max_spin)
@@ -195,6 +195,12 @@ class AppearancePanel(QWidget):
 
     def refresh(self) -> None:
         """Refresh panel based on current state."""
+        self.y_max_spin.blockSignals(True)
+        self.y_max_spin.setValue(self.state.y_max)
+        self.y_max_spin.blockSignals(False)
+        self.y_max_spin.setToolTip(
+            "Mouse default: 10 g. Rat default: 20 g. Adjust to your data; this is a display limit, not a cutoff."
+        )
         if self.state.get_analysis_df() is None and self.state._merged_df is None:
             return
 
@@ -571,6 +577,24 @@ class PreviewPanel(QWidget):
                     ha="center", va="center", transform=ax.transAxes)
             self.canvas.draw()
             return
+
+        from ..core.vf_threshold import boundary_summary, unresolved_boundaries
+        if unresolved_boundaries(df_plot):
+            ax = self._fig.add_subplot(111)
+            ax.text(0.5, 0.5, "Boundary observations need a policy.\nChoose a policy in Step 1 and recompute.\n"
+                    "Rows and censoring flags remain available in data exports.",
+                    ha="center", va="center", transform=ax.transAxes)
+            self.canvas.draw()
+            return
+        note = boundary_summary(df_plot)
+        if note:
+            self._fig.text(0.02, 0.01, note.replace(" Invalid", "\nInvalid"), fontsize=6, va="bottom")
+
+        clipped = (df_plot["threshold_50"] > self.state.y_max).sum()
+        if clipped and self.state.use_log_scale and self.state.plot_type != "delta":
+            self._fig.text(0.5, 0.99,
+                           f"{clipped} values exceed the axis maximum; adjust Step 3.",
+                           ha="center", va="top", color="#9a5300", fontsize=8)
 
         group_col = self.state.group_cols[0] if self.state.group_cols else None
         colors = self.state.colors if self.state.colors else None

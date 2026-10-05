@@ -382,6 +382,12 @@ def _reserved_data_columns(
         series_col,
         filament_col,
         "threshold_50",
+        "vf_filament_set",
+        "vf_log_column",
+        "vf_delta",
+        "vf_status",
+        "vf_boundary_limit_g",
+        "vf_boundary_policy",
     }
 
 

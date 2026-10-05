@@ -50,6 +50,25 @@ A GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down
 - [Citation](#citation)
 - [License](#license)
 
+## Species and calculation choices
+
+**All bundled experimental Excel workbooks are mouse examples**, now named
+`mouse_*.xlsx`. Use the Mouse setting for those files. The existing
+`VF_Calculator_Up-down.xlsx` is the **mouse master**.
+
+- **Mice:** choose calculated `Log_new` or stored master `Log` values. Both use
+  the threshold formula; historical mouse results are preserved.
+- **Rats:** no master Excel file is required. Logs, ladder spacing, and thresholds
+  are calculated from the nominal target forces (0.4–15 g), using a standalone
+  species-independent k table. Use a custom CSV for measured calibration.
+- **Plots:** mouse maximum defaults to 10 g; rat defaults to an adjustable 20 g.
+- **Boundaries:** rows are retained with explicit flags; select a policy before
+  plotting or statistics. Numerical endpoint substitution is an explicit choice.
+
+Read the [calculation guide](docs/filament_sets.md),
+[boundary policy guide](docs/boundary_handling.md), and
+[annotated papers/FAQ](docs/references.md) before analyzing a new ladder.
+
 ## Background
 
 The von Frey test is a standard method for assessing mechanical sensitivity in rodents. An animal is placed on a mesh platform and its hindpaw is probed with calibrated nylon monofilaments of increasing or decreasing force. The experimenter records whether the animal withdraws its paw (positive response, `x`) or not (negative response, `o`).
@@ -61,6 +80,7 @@ This tool automates the threshold computation from raw response series, generate
 ## Features
 
 - **50% threshold computation** using the Dixon up-down method with tabulated k-statistics
+- **Filament sets:** unchanged legacy mouse calibration, a sourced rat reference (~0.4–15 g), or a custom calibrated CSV ladder. See [filament sets and method limits](docs/filament_sets.md).
 - **Two experimental designs supported:**
   - **Longitudinal** (3+ timepoints) — individual animal traces + group mean ± SEM line plots
   - **Factorial pre-post** (exactly 2 timepoints) — paired lines and delta plots, with
@@ -160,7 +180,7 @@ If this fails, check that the virtual environment is activated and all packages 
 
 ### 5. Confirm the filament reference file
 
-The threshold calculator requires `data/VF_Calculator_Up-down.xlsx`. This file is included in the repository and must not be edited (see [Reference file](#reference-file-vf_calculator_up-downxlsx) below).
+Mouse analysis requires `data/VF_Calculator_Up-down.xlsx`; rat/custom analysis does not require an Excel master. This file is included in the repository and must not be edited (see [Reference file](#reference-file-vf_calculator_up-downxlsx) below).
 
 ### 6. Launch the GUI
 
@@ -185,11 +205,15 @@ After setup, you can try the bundled examples without your own files. Each exper
 
 ### Option A — Timeline (longitudinal / SNI)
 
+These are **mouse data**. Select the Mouse filament set. The example contains
+boundary observations; choose the lab's policy in Step 1 before plotting or
+statistics (see [boundary guide](docs/boundary_handling.md)).
+
 1. **Launch the GUI:** `python run.py`
 2. **Step 1 — Data**
    - Filament reference: `data/VF_Calculator_Up-down.xlsx`
-   - Data file: `data/data_timeline_experiment.xlsx`
-   - Metadata: `data/metadata_timeline_experiment.xlsx`
+   - Data file: `data/mouse_data_timeline_experiment.xlsx`
+   - Metadata: `data/mouse_metadata_timeline_experiment.xlsx`
    - Map **Mouse ID** in metadata to `animal_id` (data file uses `mouse`)
    - Map **Sex column** to `sex`
    - Click **Compute Thresholds**
@@ -198,9 +222,11 @@ After setup, you can try the bundled examples without your own files. Each exper
 
 ### Option B — Pre-post (factorial)
 
+These are **mouse data**. Select the Mouse filament set.
+
 1. **Step 1 — Data**
-   - Data file: `data/data_pre-post_experiment.xlsx`
-   - Metadata: `data/metadata_pre-post_experiment.xlsx`
+   - Data file: `data/mouse_data_pre-post_experiment.xlsx`
+   - Metadata: `data/mouse_metadata_pre-post_experiment.xlsx`
    - Map sex to `sex`; mouse IDs match between files (`mouse`)
 2. **Step 2** — Active timepoints: `pre` and `post` only. Use **panel factors** and **compare within figure** as in the [pre-post worked example](#worked-example-pre-post-experiment) below.
 3. Continue through preview, statistics, and export.
@@ -209,25 +235,31 @@ After setup, you can try the bundled examples without your own files. Each exper
 
 ```bash
 python run.py --compute \
-  --data data/data_timeline_experiment.xlsx \
-  --metadata data/metadata_timeline_experiment.xlsx \
+  --data data/mouse_data_timeline_experiment.xlsx \
+  --metadata data/mouse_metadata_timeline_experiment.xlsx \
   --output results/
 ```
 
 ```bash
 python run.py --compute \
-  --data data/data_pre-post_experiment.xlsx \
-  --metadata data/metadata_pre-post_experiment.xlsx \
+  --data data/mouse_data_pre-post_experiment.xlsx \
+  --metadata data/mouse_metadata_pre-post_experiment.xlsx \
   --output results/
 ```
 
 Batch mode writes `vf_thresholds.xlsx` with a `threshold_50` column; it does not run plots or statistics.
 
+For rat data, add `--filament-set rat`. For your own calibrated ladder, add
+`--filament-set custom --custom-filaments my_ladder.csv`. The GUI offers the same
+choices in Step 1. IDs in `last_filament` must match the selected ladder; see the
+[rat ID mapping, calibration sources, and custom CSV format](docs/filament_sets.md).
+Output also records the selected set, log column, and delta.
+
 ---
 
 ## Worked example: pre-post experiment
 
-The file `data/data_pre-post_experiment.xlsx` has **multiple sessions per mouse** (`drug` × `treatment` × `pre`/`post`). Use **panel factors** to choose which sessions each figure shows, and **compare within each figure** for the factor you want to contrast (e.g. `sal` vs `drug`).
+The file `data/mouse_data_pre-post_experiment.xlsx` has **multiple sessions per mouse** (`drug` × `treatment` × `pre`/`post`). Use **panel factors** to choose which sessions each figure shows, and **compare within each figure** for the factor you want to contrast (e.g. `sal` vs `drug`).
 
 > **Incomplete data:** this example file has no measurements for **`sal` + `chronic`** (neither pre nor post). `drug` + `chronic` includes both pre and post. Plan analyses accordingly — e.g. compare sal vs drug for **acute** treatment only, or use `drug` + chronic as a separate panel.
 
@@ -256,13 +288,13 @@ Where:
 |----------|---------|
 | **Xf** | Log value of the final filament in the series |
 | **k** | Tabulated statistic determined by the x/o response pattern |
-| **d** (delta) | Mean log interval between filaments = 0.4414 |
+| **d** (delta) | Legacy: 0.441428571; rat/custom: mean adjacent interval in the selected ladder’s log column |
 
 The log value of each filament is computed from its force as: `Log = log10(10 * force_in_grams * 1000)`.
 
 ### Reference file: `VF_Calculator_Up-down.xlsx`
 
-This file ships with the repository in the `data/` folder and contains two lookup tables:
+This mouse master ships in the `data/` folder and contains two lookup tables:
 
 1. **Filament reference table** — Calibration data for 8 von Frey filaments:
 
@@ -277,37 +309,39 @@ This file ships with the repository in the `data/` folder and contains two looku
    | 7 | 2.0410 | 4.31 | 2.000 |
    | 8 | 5.4950 | 4.74 | 6.000 |
 
-   ⚠️ **Filament 4 only:** the `Log` value stored in the Excel file (3.22) does not match the value obtained from the standard formula using the listed force (see below).
+   ⚠️ **Filaments 4 and 5:** stored `Log` values differ from logs recomputed from the listed forces (see below). The bundled calibration is retained for compatibility.
 
-2. **k-statistic lookup table** — 248 entries mapping every possible x/o response pattern (2 to 9 characters) to its corresponding k value. For example: `OX → -0.500`, `OXOOXO → 0.168`, `OOXXOO → 0.000`.
+2. **k-statistic lookup table** — 248 entries mapping supported x/o response patterns (2 to 9 characters) to its corresponding k value. For example: `OX → -0.500`, `OXOOXO → 0.168`, `OOXXOO → 0.000`.
 
-> **Do not edit this file** unless you know what you are doing. The k-statistic table and filament forces must stay as shipped. The incorrect filament-4 `Log` entry is a known legacy issue in the original calculator spreadsheet (see next section).
+> **Do not edit this file** unless you know what you are doing. The k-statistic table and filament forces must stay as shipped. Stored logs and listed forces disagree for filaments 4 and 5; verify calibration before interpreting these values (see next section).
 
 ### Log column choice (`Log` vs `Log_new`)
 
-The original `VF_Calculator_Up-down.xlsx` spreadsheet stores a `Log` column for each filament. For **filament 4** (0.158 g), that value is **incorrect**:
+The original `VF_Calculator_Up-down.xlsx` spreadsheet stores a `Log` column for each filament. For **filament 4** (0.158 g), the stored value **differs from the force-derived log**:
 
 | Source | Filament 4 log value |
 |--------|----------------------|
 | `Log` column in Excel | **3.22** |
 | Computed from force: `log10(10 × 0.158 × 1000)` | **3.199** (`Log_new`) |
 
-All other filaments match between `Log` and `Log_new` (to three decimal places). Because the 50% threshold formula uses the log of the **final filament**, sessions ending on filament 4 will give slightly different thresholds depending on which column you choose.
+Filament 5 also differs substantially: its listed force is 0.178 g (`Log_new` = 3.250), while its stored `Log` is 3.61. Other entries can differ slightly due to rounding. Changing log columns can therefore change thresholds, especially for filament 5. This tool preserves the reference values; confirm laboratory calibration before interpreting discrepancies.
 
 The tool therefore offers two options:
 
 | Option | Description | When to use |
 |--------|-------------|-------------|
-| **`Log_new`** (default) | Recomputed from each filament’s force using the formula above | **Recommended** — corrects the filament 4 error |
+| **`Log_new`** (default) | Recomputed from each filament’s force using the formula above | Use when the listed forces are the intended calibration |
 | **`Log`** | Values copied from the original Excel `Log` column | Only if you need **bit-for-bit compatibility** with older analyses or the legacy Excel calculator |
 
-Select in **Step 1** of the GUI, or with `--log-column Log_new` / `--log-column Log` in CLI mode.
+For mice, select in **Step 1** or use `--log-column Log_new` / `--log-column Log`. Rats always use calculated `Log_new`; no rat master is used.
 
 ---
 
 ## Data format requirements
 
 ### Experimental data file
+
+The legacy `mouse` column means animal ID and can contain rat IDs.
 
 An Excel (`.xlsx`) or CSV file with one row per mouse per timepoint per experimental block. Required columns:
 
@@ -316,7 +350,7 @@ An Excel (`.xlsx`) or CSV file with one row per mouse per timepoint per experime
 | `mouse` | Unique animal identifier | `1441` |
 | *timepoint column* | Timepoint label (any column name) — numeric (days) or categorical (text) | `-1`, `3`, `14` or `pre`, `post` |
 | `xo_series` | String of `x` (withdraw) and `o` (no withdraw) characters | `oxooxo` |
-| `last_filament` | Integer number (1–8) of the final filament in the series | `5` |
+| `last_filament` | Integer ID of the final filament in the selected ladder (1–8 for legacy/rat; custom CSV IDs otherwise) | `5` |
 
 The timepoint column can have any name. You map it in the GUI.
 
@@ -358,15 +392,17 @@ Do **not** load incompatible timepoints into one pre-post analysis — exclude e
 
 ## Example datasets
 
+**Mouse data only.** There is no bundled rat experimental dataset.
+
 The `data/` folder contains the filament calculator plus **two worked examples**. Each example consists of a **von Frey data file** (measurements) and a **metadata file** (animal information). Load both in Step 1.
 
 | File | Role |
 |------|------|
-| `VF_Calculator_Up-down.xlsx` | Required reference for threshold computation (do not edit) |
-| `data_timeline_experiment.xlsx` | Von Frey measurements — timeline / SNI design |
-| `metadata_timeline_experiment.xlsx` | Animal metadata — timeline experiment |
-| `data_pre-post_experiment.xlsx` | Von Frey measurements — pre-post design |
-| `metadata_pre-post_experiment.xlsx` | Animal metadata — pre-post experiment |
+| `VF_Calculator_Up-down.xlsx` | Mouse master reference (not needed for rats/custom) |
+| `mouse_data_timeline_experiment.xlsx` | Von Frey measurements — timeline / SNI design |
+| `mouse_metadata_timeline_experiment.xlsx` | Animal metadata — timeline experiment |
+| `mouse_data_pre-post_experiment.xlsx` | Von Frey measurements — pre-post design |
+| `mouse_metadata_pre-post_experiment.xlsx` | Animal metadata — pre-post experiment |
 
 ---
 
@@ -378,8 +414,8 @@ The `data/` folder contains the filament calculator plus **two worked examples**
 
 | File | Rows | Key columns |
 |------|------|-------------|
-| `data_timeline_experiment.xlsx` | 295 | `mouse`, `Timepoint_SNI_day`, `xo_series`, `last_filament` |
-| `metadata_timeline_experiment.xlsx` | 59 | `animal_id`, `sex`, `group_name`, `group_id`, `cohort`, `include_in_analysis`, `comments` |
+| `mouse_data_timeline_experiment.xlsx` | 295 | `mouse`, `Timepoint_SNI_day`, `xo_series`, `last_filament` |
+| `mouse_metadata_timeline_experiment.xlsx` | 59 | `animal_id`, `sex`, `group_name`, `group_id`, `cohort`, `include_in_analysis`, `comments` |
 
 **Measurements:** **59 mice** (one row per animal per timepoint), with timepoints **−1, 3, 7, 14, 21** (day −1 = pre-SNI baseline; surgery at day 0). Every animal has **five** complete observations.
 
@@ -399,8 +435,8 @@ The metadata column `include_in_analysis` flags three animals as excluded from t
 
 | File | Rows | Key columns |
 |------|------|-------------|
-| `data_pre-post_experiment.xlsx` | 144 | `mouse`, `drug`, `treatment`, `timepoint`, `xo_series`, `last_filament` |
-| `metadata_pre-post_experiment.xlsx` | 24 | `mouse`, `sex`, `condition`, `group`, `accept` |
+| `mouse_data_pre-post_experiment.xlsx` | 144 | `mouse`, `drug`, `treatment`, `timepoint`, `xo_series`, `last_filament` |
+| `mouse_metadata_pre-post_experiment.xlsx` | 24 | `mouse`, `sex`, `condition`, `group`, `accept` |
 
 **Measurements:** 24 mice × up to four sessions per mouse (`drug` × `treatment` × `pre`/`post`).
 
@@ -485,6 +521,9 @@ The status line reports how many figures will be generated and whether pre/post 
 |----------|-------------|---------|
 | *(no flags)* | Launch the GUI | — |
 | `--compute` | Run threshold computation only (no GUI) | — |
+| `--filament-set` | `legacy`, `rat`, or `custom` | `legacy` |
+| `--custom-filaments` | Calibrated CSV ladder; required only for `custom` | — |
+| `--boundary-policy` | `flag`, `endpoints`, or `exclude`; flags and policy are exported | `flag` |
 | `--data` | Path to von Frey data file (required with `--compute`) | — |
 | `--metadata` | Path to metadata file (optional) | — |
 | `--filament-ref` | Path to filament reference file | `data/VF_Calculator_Up-down.xlsx` |
@@ -532,11 +571,13 @@ vf_updown_analysis/
 ├── tests/
 │   └── smoke_test.py               # Quick install verification (no GUI)
 ├── data/
-│   ├── VF_Calculator_Up-down.xlsx       # Required filament & k-stat tables
-│   ├── data_timeline_experiment.xlsx    # Example: von Frey (timeline / SNI)
-│   ├── metadata_timeline_experiment.xlsx
-│   ├── data_pre-post_experiment.xlsx    # Example: von Frey (pre-post)
-│   └── metadata_pre-post_experiment.xlsx
+│   ├── VF_Calculator_Up-down.xlsx       # Mouse master only
+│   ├── filaments_rat.csv               # Rat nominal target-force ladder
+│   ├── dixon_k.csv                     # Species-independent response coefficients
+│   ├── mouse_data_timeline_experiment.xlsx    # Example: von Frey (timeline / SNI)
+│   ├── mouse_metadata_timeline_experiment.xlsx
+│   ├── mouse_data_pre-post_experiment.xlsx    # Example: von Frey (pre-post)
+│   └── mouse_metadata_pre-post_experiment.xlsx
 └── src/
     ├── main.py                     # CLI argument parsing
     ├── core/
