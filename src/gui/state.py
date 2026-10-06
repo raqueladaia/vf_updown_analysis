@@ -49,7 +49,7 @@ class AnalysisState:
     sex_col: str = "sex"
     meta_mouse_col: str = "mouse"
     log_column: str = "Log_new"
-    boundary_policy: str = "flag"
+    boundary_policy: str = "endpoints"
 
 
 

@@ -298,7 +298,7 @@ def compute_threshold_report(
     series_col: str = "xo_series",
     filament_col: str = "last_filament",
     log_column: str = "Log_new",
-    boundary_policy: str = "flag",
+    boundary_policy: str = "endpoints",
 ) -> pd.DataFrame:
     """Calculate estimates and preserve boundary/invalid observations explicitly.
 

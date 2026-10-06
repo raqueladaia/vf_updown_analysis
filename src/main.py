@@ -41,7 +41,7 @@ Examples:
                         choices=["Log", "Log_new"],
                         help="Which log column to use for computation")
     parser.add_argument("--boundary-policy", choices=["flag", "endpoints", "exclude"],
-                        default="flag", help="Boundary handling; endpoint substitution must be chosen explicitly")
+                        default="endpoints", help="Boundary handling (default: substitute tested endpoints)")
 
     args = parser.parse_args()
     if (args.filament_set == "custom") != bool(args.custom_filaments):
