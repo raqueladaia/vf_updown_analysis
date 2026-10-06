@@ -48,6 +48,7 @@ A GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down
 - [Project structure](#project-structure)
 - [Troubleshooting](#troubleshooting)
 - [Citation](#citation)
+  - [Methodological references](#methodological-references)
 - [License](#license)
 
 ## Species and calculation choices
@@ -646,11 +647,27 @@ Source code: https://github.com/raqueladaia/vf_updown_analysis
 
 Machine-readable citation metadata is in [`CITATION.cff`](CITATION.cff).
 
-Methodological references:
+### Methodological references
 
-> Dixon, W. J. (1980). Efficient analysis of experimental observations. *Annual Review of Pharmacology and Toxicology*, 20, 441-462.
+The following sources explain the up-down method, filament calibration, log
+spacing, and boundary conventions. See the [annotated reference guide and FAQ](docs/references.md)
+for how each source relates to this tool and which methods are implemented.
 
-> Chaplan, S. R., Bach, F. W., Pogrel, J. W., Chung, J. M., & Yaksh, T. L. (1994). Quantitative assessment of tactile allodynia in the rat paw. *Journal of Neuroscience Methods*, 53(1), 55-63.
+- Dixon, W. J. (1980). Efficient analysis of experimental observations. *Annual Review of Pharmacology and Toxicology*, 20, 441–462. [DOI / publisher](https://doi.org/10.1146/annurev.pa.20.040180.002301).
+
+- Chaplan, S. R., Bach, F. W., Pogrel, J. W., Chung, J. M., & Yaksh, T. L. (1994). Quantitative assessment of tactile allodynia in the rat paw. *Journal of Neuroscience Methods*, 53(1), 55–63. [DOI / publisher](https://doi.org/10.1016/0165-0270(94)90144-9) · [PubMed](https://pubmed.ncbi.nlm.nih.gov/7990513/).
+
+- Bradman, M. J., Ferrini, F., Salio, C., & Merighi, A. (2015). Practical mechanical threshold estimation in rodents using von Frey hairs/Semmes–Weinstein monofilaments: Towards a rational method. *Journal of Neuroscience Methods*, 255, 92–103. [DOI / publisher](https://doi.org/10.1016/j.jneumeth.2015.08.010) · [Full-text author manuscript](https://iris.unito.it/retrieve/e27ce427-6b39-2581-e053-d805fe0acbaa/Bradman%20JNM%20Postprint%2C%202015.pdf).
+
+- Christensen, S. L., et al. (2020). Von Frey testing revisited: Provision of an online algorithm for improved accuracy of 50% thresholds. *European Journal of Pain*, 24, 783–790. [DOI / publisher](https://doi.org/10.1002/ejp.1528) · [Full-text author manuscript](https://backend.orbit.dtu.dk/ws/files/213362370/Pesei_Christensen_et_al_2019_European_Journal_of_Pain.pdf).
+
+- Gonzalez-Cano, R., Boivin, B., Bullock, D., Cornelissen, L., Andrews, N., & Costigan, M. (2018). Up–Down Reader: An Open Source Program for Efficiently Processing 50% von Frey Thresholds. *Frontiers in Pharmacology*, 9, 433. [DOI / open-access full text](https://doi.org/10.3389/fphar.2018.00433).
+
+- Marvizon, J. C., Walwyn, W., Minasyan, A., Chen, W., & Taylor, B. K. (2015). Latent sensitization: A model for stress-sensitive chronic pain. *Current Protocols in Neuroscience*, 71, 9.50.1–9.50.14. [DOI / publisher](https://doi.org/10.1002/0471142301.ns0950s71) · [Open-access full text](https://pmc.ncbi.nlm.nih.gov/articles/PMC4532319/).
+
+- Ding, X., et al. (2018). BDNF contributes to the neonatal incision-induced facilitation of spinal long-term potentiation and the exacerbation of incisional pain in adult rats. *Neuropharmacology*, 137, 114–132. [DOI / publisher](https://doi.org/10.1016/j.neuropharm.2018.04.032) · [Institution-hosted full text](https://nri.bjmu.edu.cn/docs/2020-08/4bb5d5f639024eb8abe3147429f2ee39.pdf).
+
+- NIH/NINDS Preclinical Screening Platform for Pain. *Rat hind paw mechanical allodynia behavior (von Frey filaments) method*. [Full protocol](https://pspp.ninds.nih.gov/TestDescription/TestPWT).
 
 ## License
 
