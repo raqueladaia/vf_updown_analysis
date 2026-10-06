@@ -144,10 +144,117 @@ def test_longitudinal_plot() -> None:
     plt.close(fig)
 
 
+def test_validate_pre_post_missing_pairs() -> None:
+    import pandas as pd
+
+    from src.core.data_loader import validate_pre_post_design
+    from src.core.statistics import compute_delta_scores
+
+    df = pd.DataFrame(
+        {
+            "mouse": ["m1", "m1", "m2", "m3"],
+            "timepoint": ["pre", "post", "pre", "post"],
+            "threshold_50": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+    errors, warnings = validate_pre_post_design(
+        df,
+        mouse_col="mouse",
+        timepoint_col="timepoint",
+        active_timepoints=["pre", "post"],
+        pre_label="pre",
+        post_label="post",
+    )
+    assert not errors
+    assert any("Excluding" in w for w in warnings)
+    assert "m2" in warnings[0]
+
+    delta_df = compute_delta_scores(
+        df,
+        timepoint_col="timepoint",
+        subject_col="mouse",
+        pre_label="pre",
+        post_label="post",
+    )
+    assert list(delta_df["mouse"]) == ["m1"]
+
+
+def test_validate_pre_post_duplicate_rows_still_error() -> None:
+    import pandas as pd
+
+    from src.core.data_loader import validate_pre_post_design
+
+    df = pd.DataFrame(
+        {
+            "mouse": ["m1", "m1", "m1"],
+            "timepoint": ["pre", "pre", "post"],
+            "threshold_50": [1.0, 1.1, 2.0],
+        }
+    )
+    errors, warnings = validate_pre_post_design(
+        df,
+        mouse_col="mouse",
+        timepoint_col="timepoint",
+        active_timepoints=["pre", "post"],
+        pre_label="pre",
+        post_label="post",
+    )
+    assert errors
+    assert any("Duplicate" in e for e in errors)
+    assert not warnings
+
+
+def test_group_combination_labels() -> None:
+    import pandas as pd
+
+    from src.core.data_loader import (
+        GROUP_COMBINATION_COL,
+        add_group_combination_column,
+        format_group_combination_label,
+        get_unique_group_combination_labels,
+        resolve_plot_group_column,
+    )
+
+    df = pd.DataFrame(
+        {
+            "mouse": ["m1", "m1", "m2", "m2", "m3", "m3"],
+            "timepoint": ["pre", "post", "pre", "post", "pre", "post"],
+            "condition": ["control", "control", "control", "control", "exp", "exp"],
+            "treatment": ["acute", "acute", "chronic", "chronic", "acute", "acute"],
+            "threshold_50": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        }
+    )
+
+    labels = get_unique_group_combination_labels(
+        df, ["condition", "treatment"], mouse_col="mouse"
+    )
+    assert labels == [
+        "condition=control x treatment=acute",
+        "condition=control x treatment=chronic",
+        "condition=exp x treatment=acute",
+    ]
+
+    row = df.iloc[0]
+    assert (
+        format_group_combination_label(["condition", "treatment"], row)
+        == "condition=control x treatment=acute"
+    )
+    assert format_group_combination_label(["condition"], row) == "control"
+
+    plot_df = add_group_combination_column(df, ["condition", "treatment"], "mouse")
+    assert GROUP_COMBINATION_COL in plot_df.columns
+    assert plot_df[GROUP_COMBINATION_COL].nunique() == 3
+    assert resolve_plot_group_column(["condition", "treatment"]) == GROUP_COMBINATION_COL
+    assert resolve_plot_group_column(["condition"]) == "condition"
+
+
 def main() -> int:
     test_imports()
     test_facet_and_state()
     test_metadata_accept_exclusions()
+    test_validate_pre_post_missing_pairs()
+    test_validate_pre_post_duplicate_rows_still_error()
+    test_group_combination_labels()
     test_paired_plot()
     test_longitudinal_plot()
     print("smoke_test: OK")

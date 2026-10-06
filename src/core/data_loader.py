@@ -369,6 +369,77 @@ def get_group_combinations(
     return groups
 
 
+GROUP_COMBINATION_COL = "_vf_group_combo"
+
+
+def format_group_combination_label(group_cols: list[str], row: pd.Series) -> str:
+    """Build a display label for one nested group combination.
+
+    With a single group column, returns the level value (e.g. ``control``).
+    With multiple columns, returns ``col=val x col=val`` (e.g.
+    ``condition=control x treatment=acute``).
+    """
+    if not group_cols:
+        return "all"
+    if len(group_cols) == 1:
+        return str(row[group_cols[0]])
+    parts = [f"{col}={row[col]}" for col in group_cols]
+    return " x ".join(parts)
+
+
+def get_unique_group_combination_labels(
+    df: pd.DataFrame,
+    group_cols: list[str],
+    mouse_col: str = "mouse",
+) -> list[str]:
+    """Return sorted unique nested group labels (one per mouse)."""
+    if not group_cols:
+        return ["all"]
+    present_cols = [c for c in group_cols if c in df.columns]
+    if not present_cols:
+        return ["all"]
+
+    mouse_meta = df.groupby(mouse_col, dropna=False)[present_cols].first()
+    labels = mouse_meta.apply(
+        lambda row: format_group_combination_label(present_cols, row),
+        axis=1,
+    )
+    return sorted(labels.unique(), key=str)
+
+
+def add_group_combination_column(
+    df: pd.DataFrame,
+    group_cols: list[str],
+    mouse_col: str,
+    out_col: str = GROUP_COMBINATION_COL,
+) -> pd.DataFrame:
+    """Add a column encoding nested group combinations for plotting/stats."""
+    if not group_cols or len(group_cols) == 1:
+        return df
+
+    present_cols = [c for c in group_cols if c in df.columns]
+    if not present_cols:
+        return df
+
+    df = df.copy()
+    mouse_meta = df.groupby(mouse_col, dropna=False)[present_cols].first()
+    combos = mouse_meta.apply(
+        lambda row: format_group_combination_label(present_cols, row),
+        axis=1,
+    )
+    df[out_col] = df[mouse_col].map(combos)
+    return df
+
+
+def resolve_plot_group_column(group_cols: list[str]) -> Optional[str]:
+    """Column name used for color encoding in plots."""
+    if not group_cols:
+        return None
+    if len(group_cols) == 1:
+        return group_cols[0]
+    return GROUP_COMBINATION_COL
+
+
 def _reserved_data_columns(
     mouse_col: str,
     timepoint_col: str,
@@ -733,6 +804,9 @@ def validate_pre_post_design(
 
     Returns:
         Tuple of (errors, warnings). Empty errors means valid.
+
+    Animals missing either pre or post are reported as warnings and excluded
+    from analysis. Duplicate pre/post rows per unit remain blocking errors.
     """
     errors: list[str] = []
     warnings: list[str] = []
@@ -775,30 +849,50 @@ def validate_pre_post_design(
         return errors, warnings
 
     group_keys = [mouse_col] + list(pairing_cols)
-    problem_units: list[str] = []
+    missing_units: list[str] = []
+    duplicate_units: list[str] = []
+    complete_units = 0
 
     pre_counts = df_pre.groupby(group_keys, dropna=False).size()
     post_counts = df_post.groupby(group_keys, dropna=False).size()
     all_keys = pre_counts.index.union(post_counts.index)
 
+    def _unit_label(key: object, n_pre: int, n_post: int) -> str:
+        if pairing_cols:
+            parts = ", ".join(
+                f"{col}={key[i + 1] if isinstance(key, tuple) else key}"
+                for i, col in enumerate(pairing_cols)
+            )
+            mouse = key[0] if isinstance(key, tuple) else key
+            return f"mouse {mouse} ({parts}: pre={n_pre}, post={n_post})"
+        mouse = key[0] if isinstance(key, tuple) else key
+        return f"{mouse} (pre={n_pre}, post={n_post})"
+
     for key in all_keys:
         n_pre = int(pre_counts.get(key, 0))
         n_post = int(post_counts.get(key, 0))
-        if n_pre != 1 or n_post != 1:
-            if pairing_cols:
-                label = ", ".join(
-                    f"{col}={key[i + 1] if isinstance(key, tuple) else key}"
-                    for i, col in enumerate(pairing_cols)
-                )
-                problem_units.append(f"mouse {key[0] if isinstance(key, tuple) else key} ({label}: pre={n_pre}, post={n_post})")
-            else:
-                mouse = key[0] if isinstance(key, tuple) else key
-                problem_units.append(f"{mouse} (pre={n_pre}, post={n_post})")
+        if n_pre == 1 and n_post == 1:
+            complete_units += 1
+            continue
+        label = _unit_label(key, n_pre, n_post)
+        if n_pre == 0 or n_post == 0:
+            missing_units.append(label)
+        else:
+            duplicate_units.append(label)
 
-    if problem_units:
-        shown = ", ".join(problem_units[:6])
-        if len(problem_units) > 6:
-            shown += f", ... (+{len(problem_units) - 6} more)"
+    if missing_units:
+        shown = ", ".join(missing_units[:6])
+        if len(missing_units) > 6:
+            shown += f", ... (+{len(missing_units) - 6} more)"
+        warnings.append(
+            f"Excluding {len(missing_units)} animal(s) without a complete pre-post "
+            f"pair from analysis: {shown}"
+        )
+
+    if duplicate_units:
+        shown = ", ".join(duplicate_units[:6])
+        if len(duplicate_units) > 6:
+            shown += f", ... (+{len(duplicate_units) - 6} more)"
         hint = ""
         if not pairing_cols:
             hint = (
@@ -807,9 +901,13 @@ def validate_pre_post_design(
             )
         errors.append(
             "Each mouse must have exactly one pre and one post row per experimental "
-            f"unit.{hint} Problems: {shown}"
+            f"unit.{hint} Duplicate rows: {shown}"
         )
-    elif pairing_cols:
+
+    if complete_units == 0 and not duplicate_units:
+        errors.append("No animals with a complete pre-post pair remain for analysis.")
+
+    if complete_units > 0 and not duplicate_units and pairing_cols:
         warnings.append(
             f"Paired pre/post computed separately for each level of: "
             f"{', '.join(pairing_cols)}."

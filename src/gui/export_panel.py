@@ -200,7 +200,12 @@ class StatsPanel(QWidget):
         if review_df is not None and boundary_summary(review_df):
             results_parts.append(boundary_summary(review_df))
             results_parts.append("Endpoint substitutes, when selected, are treated as ordinary numbers by these tests; interpret with caution.")
-        group_col = self.state.group_cols[0] if self.state.group_cols else None
+        from ..core.data_loader import (
+            add_group_combination_column,
+            resolve_plot_group_column,
+        )
+
+        group_col = resolve_plot_group_column(self.state.group_cols)
 
         tp_col = self.state.timepoint_col
         active_tp = self.state.active_timepoints()
@@ -224,7 +229,7 @@ class StatsPanel(QWidget):
             self.state.pre_label = pre_label
             self.state.post_label = post_label
 
-            errors, _warnings = validate_facet_slices(
+            errors, warnings = validate_facet_slices(
                 slices,
                 self.state.mouse_col,
                 tp_col,
@@ -245,6 +250,10 @@ class StatsPanel(QWidget):
                 self.run_btn.setEnabled(True)
                 return
 
+            for w in warnings:
+                results_parts.append(f"NOTE: {w}")
+                results_parts.append("")
+
             correction = self._get_correction_key()
             self.state.correction_method = correction
 
@@ -256,7 +265,12 @@ class StatsPanel(QWidget):
                         results_parts.append("=" * 60)
                         results_parts.append(f"PANEL: {sl.label}")
                         results_parts.append("=" * 60)
-                    self._run_factorial(sl.df, group_col, tp_col, correction, results_parts)
+                    panel_df = add_group_combination_column(
+                        sl.df, self.state.group_cols, self.state.mouse_col
+                    )
+                    self._run_factorial(
+                        panel_df, group_col, tp_col, correction, results_parts
+                    )
             except Exception as e:
                 import traceback
                 results_parts.append("\n" + "=" * 60)
@@ -279,6 +293,9 @@ class StatsPanel(QWidget):
                 self.run_btn.setText("Run Analysis")
                 self.run_btn.setEnabled(True)
                 return
+            df = add_group_combination_column(
+                df, self.state.group_cols, self.state.mouse_col
+            )
 
         correction = self._get_correction_key()
         self.state.correction_method = correction
@@ -445,6 +462,7 @@ class StatsPanel(QWidget):
         if not self.cb_delta.isChecked():
             return
 
+        from ..core.data_loader import add_group_combination_column
         from ..core.statistics import (
             compute_delta_scores,
             pairwise_results_to_dataframe,
@@ -462,6 +480,9 @@ class StatsPanel(QWidget):
             df, "threshold_50", tp_col, self.state.mouse_col,
             pre_label, post_label,
             pairing_cols=self.state.pairing_cols or None,
+        )
+        delta_df = add_group_combination_column(
+            delta_df, self.state.group_cols, self.state.mouse_col
         )
         self.state._delta_df = delta_df
         results_parts.append("=" * 60)

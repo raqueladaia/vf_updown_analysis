@@ -398,7 +398,7 @@ class GroupConfigPanel(QWidget):
         factor_candidates = self.state.get_factor_candidates()
         self.state.refresh_pairing_columns()
 
-        errors, _warnings = validate_facet_slices(
+        errors, warnings = validate_facet_slices(
             slices,
             self.state.mouse_col,
             self.state.timepoint_col,
@@ -418,10 +418,13 @@ class GroupConfigPanel(QWidget):
             pair_note = ""
             if self.state.pairing_cols:
                 pair_note = f" | paired by {', '.join(self.state.pairing_cols)}"
-            self.facet_status_label.setText(
-                f"✓ {panel_note} | {n_mice} mice per panel{pair_note}"
-            )
-            self.facet_status_label.setStyleSheet("color: green;")
+            status = f"✓ {panel_note} | {n_mice} mice per panel{pair_note}"
+            if warnings:
+                status += f" | ⚠ {warnings[0]}"
+                self.facet_status_label.setStyleSheet("color: #b8860b;")
+            else:
+                self.facet_status_label.setStyleSheet("color: green;")
+            self.facet_status_label.setText(status)
 
     def _update_conditions(self) -> None:
         selected_cols = [col for cb, col in self._group_checkboxes if cb.isChecked()]

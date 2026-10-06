@@ -239,7 +239,7 @@ class AppearancePanel(QWidget):
             self.state.fig_width = 6.0
             self.width_spin.setValue(self.state.fig_width)
 
-        # Populate color buttons
+        # Populate color buttons (one per nested condition combination)
         self._rebuild_color_buttons()
 
     def _rebuild_color_buttons(self) -> None:
@@ -252,21 +252,30 @@ class AppearancePanel(QWidget):
         self.color_info_label.hide()
 
         if self.state._merged_df is None:
+            self.color_info_label.setText("Configure groups first to assign colors.")
             self.color_info_label.show()
             return
 
         analysis_df = self.state.get_analysis_df()
         source_df = analysis_df if analysis_df is not None else self.state._merged_df
 
-        # Determine unique group values
-        group_values: list[str] = []
-        if self.state.group_cols:
-            for col in self.state.group_cols:
-                if col in source_df.columns:
-                    for val in source_df[col].dropna().unique():
-                        group_values.append(str(val))
-        else:
-            group_values = ["all"]
+        from ..core.data_loader import get_unique_group_combination_labels
+
+        group_values = get_unique_group_combination_labels(
+            source_df,
+            self.state.group_cols,
+            mouse_col=self.state.mouse_col,
+        )
+
+        if not self.state.group_cols:
+            self.color_info_label.setText("Configure groups first to assign colors.")
+            self.color_info_label.show()
+        elif len(self.state.group_cols) > 1:
+            self.color_info_label.setText(
+                f"Assign a color to each of the {len(group_values)} nested "
+                f"condition combination(s):"
+            )
+            self.color_info_label.show()
 
         # Default color cycle
         from ..plotting.plot_utils import DEFAULT_COLORS
@@ -416,22 +425,30 @@ class PreviewPanel(QWidget):
             self._scroll_layout.addStretch()
             return
 
+        from ..core.data_loader import (
+            add_group_combination_column,
+            resolve_plot_group_column,
+        )
+
         mouse_col = self.state.mouse_col
-        group_col = self.state.group_cols[0] if self.state.group_cols else None
+        plot_df = add_group_combination_column(
+            merged, self.state.group_cols, mouse_col
+        )
+        group_col = resolve_plot_group_column(self.state.group_cols)
         excluded = set(self.state.excluded_animals)
 
         self._updating_checkboxes = True
 
-        if group_col and group_col in merged.columns:
-            for group_val in merged[group_col].dropna().unique():
+        if group_col and group_col in plot_df.columns:
+            for group_val in sorted(plot_df[group_col].dropna().unique(), key=str):
                 # Group header with color
                 header = QLabel(f"<b>{group_val}</b>")
                 color = self.state.colors.get(str(group_val), "#000000")
                 header.setStyleSheet(f"color: {color}; margin-top: 6px;")
                 self._scroll_layout.addWidget(header)
 
-                group_mice = merged.loc[
-                    merged[group_col] == group_val, mouse_col
+                group_mice = plot_df.loc[
+                    plot_df[group_col] == group_val, mouse_col
                 ].unique()
                 for mid in sorted(group_mice, key=str):
                     ms = str(mid)
@@ -441,7 +458,7 @@ class PreviewPanel(QWidget):
                     self._scroll_layout.addWidget(cb)
                     self._animal_checkboxes[ms] = cb
         else:
-            for mid in sorted(merged[mouse_col].unique(), key=str):
+            for mid in sorted(plot_df[mouse_col].unique(), key=str):
                 ms = str(mid)
                 cb = QCheckBox(ms)
                 cb.setChecked(ms not in excluded)
@@ -564,6 +581,16 @@ class PreviewPanel(QWidget):
         tp_col = self.state.timepoint_col
         mouse_col = self.state.mouse_col
         df_plot = merged.copy()
+
+        from ..core.data_loader import (
+            add_group_combination_column,
+            resolve_plot_group_column,
+        )
+
+        df_plot = add_group_combination_column(
+            df_plot, self.state.group_cols, mouse_col
+        )
+        group_col = resolve_plot_group_column(self.state.group_cols)
         active_tp = self.state.active_timepoints()
 
         # Exclude unchecked animals
@@ -596,7 +623,6 @@ class PreviewPanel(QWidget):
                            f"{clipped} values exceed the axis maximum; adjust Step 3.",
                            ha="center", va="top", color="#9a5300", fontsize=8)
 
-        group_col = self.state.group_cols[0] if self.state.group_cols else None
         colors = self.state.colors if self.state.colors else None
 
         plot_title = self.state.plot_title
@@ -621,8 +647,12 @@ class PreviewPanel(QWidget):
         show_p = self.state.significance_style in ("stars_and_p", "p_only")
 
         delta_df = self.state._delta_df
-        if delta_df is not None and excluded and mouse_col in delta_df.columns:
-            delta_df = delta_df[~delta_df[mouse_col].astype(str).isin(excluded)]
+        if delta_df is not None:
+            delta_df = add_group_combination_column(
+                delta_df, self.state.group_cols, mouse_col
+            )
+            if excluded and mouse_col in delta_df.columns:
+                delta_df = delta_df[~delta_df[mouse_col].astype(str).isin(excluded)]
 
         plot_type = self.state.plot_type
 
