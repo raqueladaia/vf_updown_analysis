@@ -63,8 +63,8 @@ A GUI and CLI tool for computing 50% withdrawal thresholds from von Frey up-down
   are calculated from the nominal target forces (0.4–15 g), using a standalone
   species-independent k table. Use a custom CSV for measured calibration.
 - **Plots:** mouse maximum defaults to 10 g; rat defaults to an adjustable 20 g.
-- **Boundaries:** rows are retained with explicit flags; select a policy before
-  plotting or statistics. Numerical endpoint substitution is an explicit choice.
+- **Boundaries:** all-X runs ending at the lowest filament and all-O runs ending
+  at the highest use the tested endpoints by default, with boundary flags retained.
 
 Read the [calculation guide](docs/filament_sets.md),
 [boundary policy guide](docs/boundary_handling.md), and
@@ -207,8 +207,8 @@ After setup, you can try the bundled examples without your own files. Each exper
 ### Option A — Timeline (longitudinal / SNI)
 
 These are **mouse data**. Select the Mouse filament set. The example contains
-boundary observations; choose the lab's policy in Step 1 before plotting or
-statistics (see [boundary guide](docs/boundary_handling.md)).
+boundary observations; tested endpoints are substituted by default for plotting
+and statistics (see [boundary guide](docs/boundary_handling.md)).
 
 1. **Launch the GUI:** `python run.py`
 2. **Step 1 — Data**
@@ -524,7 +524,7 @@ The status line reports how many figures will be generated and whether pre/post 
 | `--compute` | Run threshold computation only (no GUI) | — |
 | `--filament-set` | `legacy`, `rat`, or `custom` | `legacy` |
 | `--custom-filaments` | Calibrated CSV ladder; required only for `custom` | — |
-| `--boundary-policy` | `flag`, `endpoints`, or `exclude`; flags and policy are exported | `flag` |
+| `--boundary-policy` | `flag`, `endpoints`, or `exclude`; flags and policy are exported | `endpoints` |
 | `--data` | Path to von Frey data file (required with `--compute`) | — |
 | `--metadata` | Path to metadata file (optional) | — |
 | `--filament-ref` | Path to filament reference file | `data/VF_Calculator_Up-down.xlsx` |

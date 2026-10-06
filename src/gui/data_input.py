@@ -52,7 +52,7 @@ class ThresholdWorker(QThread):
         series_col: str,
         filament_col: str,
         log_column: str,
-        boundary_policy: str = "flag",
+        boundary_policy: str = "endpoints",
     ):
         super().__init__()
         self.df = df
@@ -156,8 +156,8 @@ class DataInputPanel(QWidget):
         boundary_row = QHBoxLayout()
         boundary_row.addWidget(QLabel("Boundary observations:"))
         self.boundary_combo = QComboBox()
-        self.boundary_combo.addItem("Flag for review before statistics (default)", "flag")
-        self.boundary_combo.addItem("Use tested endpoints as numerical substitutes", "endpoints")
+        self.boundary_combo.addItem("Flag for review before statistics", "flag")
+        self.boundary_combo.addItem("Use tested endpoints as numerical substitutes (default)", "endpoints")
         self.boundary_combo.addItem("Explicitly exclude from numerical analysis", "exclude")
         self.boundary_combo.setToolTip(
             "All X at the lowest force or all O at the highest force are censored observations, "

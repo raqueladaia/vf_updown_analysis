@@ -5,16 +5,23 @@ boundary; all non-withdrawals (`O`) ending at the highest indicate the upper
 boundary. These are operationally censored observations, not exact 50% estimates.
 Retain the animal, raw responses, final ID, and direction flag.
 
-## Select a predefined policy in Step 1
+## Tested endpoints are the default
+
+Valid uniform-response boundary runs receive the lowest/highest tested value,
+not NaN. For rats, `xxxx` ending at ID 1 receives 0.4 g and `ooooo` ending at ID 8
+receives 15 g. Mouse endpoints follow the selected master/computed log convention.
+Boundary flags remain in exports. Invalid or incomplete runs still need review.
 
 | Policy | Boundary `threshold_50` | Plots/statistics |
 | --- | --- | --- |
-| `flag` (default) | Missing; limit/direction stored separately | Blocked for affected data pending policy selection |
-| `endpoints` | Lowest/highest tested force under the selected log convention | Included as numerical substitutes with annotations |
+| `endpoints` (default) | Lowest/highest tested force under the selected log convention | Included as numerical substitutes with annotations |
+| `flag` (optional) | Missing; limit/direction stored separately | Blocked for affected data pending policy selection |
 | `exclude` | Missing, with explicit exclusion policy | Excluded numerically; counts remain visible |
 
 CLI supports `--boundary-policy flag`, `endpoints`, or `exclude` and exports data
-only. Choose endpoint substitution only when it matches the predefined protocol.
+only. Omitting this option uses `endpoints`. Step 1 retains the optional policies.
+Previously saved sessions retain their saved policy; select endpoints and recompute
+if loading a session saved with `flag` or `exclude`.
 Exclusion can bias results by removing the most/least sensitive animals.
 The existing t-tests, ANOVA, and mixed models treat substitutes as ordinary
 numbers; they are **not censoring-aware models**. Substantial censoring warrants

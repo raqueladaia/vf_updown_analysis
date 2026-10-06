@@ -23,6 +23,21 @@ MASTER = ROOT / 'data/VF_Calculator_Up-down.xlsx'
 
 
 class CalculationSafetyTests(unittest.TestCase):
+    def test_default_boundary_values_are_endpoints_for_both_species(self):
+        self.assertEqual(AnalysisState().boundary_policy, 'endpoints')
+        self.assertEqual(AnalysisState.from_json('{}').boundary_policy, 'endpoints')
+        self.assertEqual(AnalysisState.from_json('{"boundary_policy":"flag"}').boundary_policy, 'flag')
+        for profile in ['legacy', 'rat']:
+            info, stats = load_filament_reference(MASTER, filament_set=profile)
+            data = pd.DataFrame({'xo_series': ['xxxx', 'ooooo'], 'last_filament': [1, 8]})
+            for column in (['Log', 'Log_new'] if profile == 'legacy' else ['Log_new']):
+                result = compute_threshold_report(data, info, stats, log_column=column)
+                expected = 10 ** info[column].iloc[[0, -1]].to_numpy() / 10000
+                np.testing.assert_allclose(result.threshold_50, expected)
+                self.assertFalse(result.threshold_50.isna().any())
+                self.assertEqual(result.vf_status.tolist(), ['below_range', 'above_range'])
+                self.assertFalse(unresolved_boundaries(result))
+
     def test_rat_does_not_open_excel_and_uses_target_force(self):
         with patch('pandas.read_excel', side_effect=AssertionError('Rat must not read Excel')):
             info, stats = load_filament_reference('/nonexistent/master.xlsx', filament_set='rat')
@@ -99,7 +114,7 @@ class CalculationSafetyTests(unittest.TestCase):
             path.write_text('mouse,timepoint,xo_series,last_filament\nr1,pre,XXXX,1\nr2,pre,OOOOO,8\n')
             args=[sys.executable, str(ROOT/'run.py'), '--compute', '--data', str(path),
                   '--filament-set', 'rat', '--filament-ref', str(Path(directory)/'absent.xlsx'),
-                  '--boundary-policy', 'endpoints', '--output', directory]
+                  '--output', directory]
             run=subprocess.run(args, cwd=directory, capture_output=True, text=True)
             self.assertEqual(run.returncode, 0, run.stderr)
             df=pd.read_excel(Path(directory)/'vf_thresholds.xlsx')
@@ -120,9 +135,10 @@ class GuiSafetyTests(unittest.TestCase):
         state=AnalysisState(filament_ref_path=str(MASTER))
         panel=DataInputPanel(state)
         self.addCleanup(panel.close)
+        self.assertEqual(panel.boundary_combo.currentData(), 'endpoints')
         state._data_df=pd.DataFrame({'mouse':['m1'],'threshold_50':[3.3], 'vf_delta':[.44]})
         for change in [lambda:panel.filament_set_combo.setCurrentIndex(1),
-                       lambda:panel.boundary_combo.setCurrentIndex(1),
+                       lambda:panel.boundary_combo.setCurrentIndex(0),
                        lambda:panel.filament_set_combo.setCurrentIndex(0),
                        lambda:panel.log_old_radio.setChecked(True)]:
             state._merged_df=state._data_df.copy()
@@ -159,7 +175,7 @@ class GuiSafetyTests(unittest.TestCase):
         info, stats=load_filament_reference(filament_set='rat')
         data=pd.DataFrame({'mouse':['r1'], 'timepoint':['pre'], 'xo_series':['OOOOO'], 'last_filament':[8]})
         state=AnalysisState(filament_set='rat', timepoint_col='timepoint', timepoint_order=['pre'])
-        state._merged_df=compute_threshold_report(data,info,stats)
+        state._merged_df=compute_threshold_report(data,info,stats,boundary_policy='flag')
         panel=StatsPanel(state)
         self.addCleanup(panel.close)
         with patch('src.gui.export_panel.QMessageBox.warning') as warning:
