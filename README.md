@@ -669,6 +669,10 @@ for how each source relates to this tool and which methods are implemented.
 
 - NIH/NINDS Preclinical Screening Platform for Pain. *Rat hind paw mechanical allodynia behavior (von Frey filaments) method*. [Full protocol](https://pspp.ninds.nih.gov/TestDescription/TestPWT).
 
+## Author
+
+Developed by [Raquel Adaia Sandoval Ortega, PhD](https://sandovalortega.com/), neuroscientist at the University of Pennsylvania. Read more about Von Frey Up-Down Analysis and related research software at [sandovalortega.com/von-frey-analysis/](https://sandovalortega.com/von-frey-analysis/).
+
 ## License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
